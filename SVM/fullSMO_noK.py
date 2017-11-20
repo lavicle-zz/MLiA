@@ -33,12 +33,13 @@ def take_steps(os, i):
     # input(what elements of os)
     # the output: update alpha_i, alpha_j and b
     ei = calc_e(os, i)
-    kkt_or_not = (os.alphas[i] > 0 and os.y_matrix[i] * ei > os.tole) \
-                 or (os.alphas[i] < os.c and os.y_matrix[i] * ei < -os.tole) # why >> and <<
+    kkt_or_not = (os.alphas[i] > 0 and os.y_matrix[i] * ei > os.tole) or \
+                 (os.alphas[i] < os.c and os.y_matrix[i] * ei < -os.tole)  # why >> and <<
     # select the i which violates the KKT condition
     if kkt_or_not:
+        j, ej = select_j(os, i, ei)
         # j, ej = select_j(os, i, ei)
-        j, ej = select_j_random(os, i)
+        # j, ej = select_j_random(os, i)
         kii = os.x_matrix[i, :] * (os.x_matrix[i, :]).T
         kij = os.x_matrix[i, :] * (os.x_matrix[j, :]).T
         kjj = os.x_matrix[j, :] * (os.x_matrix[j, :]).T
@@ -59,14 +60,15 @@ def take_steps(os, i):
             l = max(0, alpha_j_old - alpha_i_old)
         # clip_alpha_j
         if h == l:
-            print('h==l， %d， %d', (h, l))
+            print('h == l， %d， %d', (h, l))
             return 0
-        else:
-            print('not h==l')
         if alpha_j_new < l:
             alpha_j_new = l
         elif alpha_j_new > h:
             alpha_j_new = h
+        if abs(alpha_j_new - alpha_j_old) < 0.00001 :  # take care of this if it is the fullSMO
+            print('j not moving enough')
+            return 0
         # get alpha_i
         s = os.y_matrix[i] * os.y_matrix[j]
         delta_alpha_i = - s * (alpha_j_new - alpha_j_old)
@@ -77,20 +79,18 @@ def take_steps(os, i):
         update_e(os, i)  # since alpha has been changed, so will the os.e_cache. What about other os.e_cache
         update_e(os, j)
         # get b
-        bi = os.b - ei\
-             - delta_alpha_i * os.y_matrix[i] * (os.x_matrix[i, :] * (os.x_matrix[i, :]).T) \
-             - delta_alpha_j * os.y_matrix[j] * (os.x_matrix[j, :] * (os.x_matrix[i, :]).T)
+        bi = os.b - ei - \
+             (alpha_i_new - alpha_i_old) * os.y_matrix[i] * (os.x_matrix[i, :] * (os.x_matrix[i, :]).T) - \
+             (alpha_j_new - alpha_j_old) * os.y_matrix[j] * (os.x_matrix[j, :] * (os.x_matrix[i, :]).T)
         bj = os.b - ej \
-             - delta_alpha_i * os.y_matrix[i] * (os.x_matrix[i, :] * (os.x_matrix[j, :]).T) \
-             - delta_alpha_j * os.y_matrix[j] * (os.x_matrix[j, :] * (os.x_matrix[j, :]).T)
+             - (alpha_i_new - alpha_i_old) * os.y_matrix[i] * (os.x_matrix[i, :] * (os.x_matrix[j, :]).T) \
+             - (alpha_j_new - alpha_j_old) * os.y_matrix[j] * (os.x_matrix[j, :] * (os.x_matrix[j, :]).T)
         if 0 < os.alphas[i] < os.c:  # the alpha used here should new or old? the answer is new, why?
-            b = bi
+            os.b = bi
         elif 0 < os.alphas[j] < os.c:
-            b = bj
+            os.b = bj
         else:
-            b = (bi + bj) / 2
-        # update b
-        os.b = b
+            os.b = (bi + bj) / 2
         return 1
     else:
         return 0
@@ -106,21 +106,41 @@ def select_j(os, i, ei):
     max_j = 0  # the corresponding j when delta_e is the max
     os.e_cache[i, :] = [1, ei]
     unbounded = np.nonzero(os.e_cache[:, 0].A)[0]  # special non-zero get way
-    if len(unbounded) > 0:
+    if len(unbounded) > 1:
         for k in unbounded:
             ek = calc_e(os, k)
             if abs(ek - ei) > max_delta_e:
                 max_ej = ek
                 max_j = k
+                max_delta_e = abs(ek - ei)
         return max_j, max_ej
     else:
         j, ej = select_j_random(os, i)
         return j, ej
 
+# def selectJ(os, i,  Ei):  # this is the second choice -heurstic, and calcs Ej
+#     maxK = -1
+#     maxDeltaE = 0
+#     Ej = 0
+#     os.e_cache[i] = [1, Ei]  # set valid #choose the alpha that gives the maximum delta E
+#     validEcacheList = np.nonzero(os.e_cache[:, 0].A)[0]
+#     if (len(validEcacheList)) > 1:
+#         for k in validEcacheList:  # loop through valid Ecache values and find the one that maximizes delta E
+#             if k == i: continue  # don't calc for i, waste of time
+#             Ek = calc_e(os, k)
+#             deltaE = abs(Ei - Ek)
+#             if (deltaE > maxDeltaE):
+#                 maxK = k
+#                 maxDeltaE = deltaE
+#                 Ej = Ek
+#         return maxK, Ej
+#     else:  # in this case (first time around) we don't have any valid eCache values
+#         j, Ej = select_j_random(os, i)
+#     return j, Ej
 
 def calc_e(os, k):
-    w = np.multiply(os.alphas, os.y_matrix).T * os.x_matrix  # 1*n
-    error_k = float(w * (os.x_matrix[k, :]).T + os.b - os.y_matrix[k])
+    fk = float(np.multiply(os.alphas, os.y_matrix).T * os.x_matrix * (os.x_matrix[k, :]).T + os.b)  # 1*n
+    error_k = fk - float(os.y_matrix[k])
     # why not update os.e_cache immediately? because
     return error_k
 
@@ -144,31 +164,38 @@ def full_smo(x_matrix, y_matrix, c, tole, max_iter):
     os = OptStructure(x_matrix, y_matrix, c, tole)
     pairs_changed = 0
     examine_all = 1
-    iters = 0
-    while iters < max_iter and (pairs_changed > 0 or examine_all == 1):
+    iterations = 0
+    while iterations < max_iter and (pairs_changed > 0 or examine_all == 1):
         pairs_changed = 0
         if examine_all == 1:
             # if the entire data is not rounded through, then we choose i in order, and choose j in random
             for i in range(os.m):
                 pairs_changed += take_steps(os, i)
-            iters += 1
-            print('examine_all, iter: %d, i: %d, pairs changed: %d' %(iters, i, pairs_changed))
+                print('examine_all, iter: %d, i: %d, pairs changed: %d' % (iterations, i, pairs_changed))
+            iterations += 1
+            # # linear svm(simple smo)
+            # if pairs_changed != 0:
+            #     iterations = 0
+            # else:
+            #     iterations += 1
+            #
         else:
-            nonbound = np.nonzero((os.alphas.A > 0) * (os.alphas.A < c))[0]
+            nonbound = np.nonzero((os.alphas.A > 0) * (os.alphas.A < os.c))[0]
             for i in nonbound:
                 pairs_changed += take_steps(os, i)
-            iters += 1
-            print('nonbounds, iter: %d, i: %d, pairs changed: %d' % (iters, i, pairs_changed))
-        # if examine_all == 1:
-        #     examine_all = 0
-        # elif pairs_changed == 0:
-        #     examine_all = 1
+                print('non-bounds, iter: %d, i: %d, pairs changed: %d' % (iterations, i, pairs_changed))
+            iterations += 1
+        print('iters: %d' % iterations)
+        if examine_all == 1:
+            examine_all = 0
+        elif pairs_changed == 0:
+            examine_all = 1
     return os.alphas, os.b
 
 dataArr, labelArr = import_data('testSet.txt')
 alphas, b = full_smo(np.asmatrix(dataArr), np.asmatrix(labelArr), 0.6, 0.001, 40)
 print(b)
-print (alphas[alphas>0])
+print(alphas[alphas>0])
 
 
 

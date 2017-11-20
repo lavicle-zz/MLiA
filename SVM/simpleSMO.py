@@ -69,6 +69,22 @@ def cal_b(alpha_newj, alpha_newi, w_new, x_i, x_j, y_i, y_j, C):
         b = (bi + bj)/2
     return b
 
+def cal_b2(b, alpha_newj, alpha_newi, alpha_oldj, alpha_oldi, ei, ej, x_i, x_j, y_i, y_j, C):
+    # test b for fullSMO
+    bi = b - ei \
+         - (alpha_newi - alpha_oldi) * y_i * (x_i * x_i.T) \
+         - (alpha_newj - alpha_oldj) * y_j * (x_j * x_i.T)
+    bj = b - ej \
+         - (alpha_newi - alpha_oldi) * y_i * (x_i * x_j.T) \
+         - (alpha_newj - alpha_oldj) * y_j * (x_j * x_j.T)
+    if 0 < alpha_newj< C:
+        b = bj
+    elif 0 < alpha_newi< C:
+        b = bi
+    else:
+        b = (bi + bj)/2
+    return b
+
 def smo_simple(dataMat, labelMat, C, toler, maxIter):
     # this funtion calculate the alphas and b
     # w can be calculated with alphas, x(dataMat) and y(lableMat)
@@ -87,7 +103,7 @@ def smo_simple(dataMat, labelMat, C, toler, maxIter):
             w = np.multiply(alphas, labelMat).T * dataMat  # get w 1*n
             Ei = float(w*dataMat[i, :].T + b - labelMat[i]) # ei is w*xi+b-yi Ei should be a number instead of a array
             # check whether alpha_i violates kkt condition
-            i_break_kkt = ((float(alphas[i]) < C) and (float(Ei*labelMat[i]) < -toler)) or ( (alphas[i] > C) and (Ei*labelMat[i] > toler))
+            i_break_kkt = ((float(alphas[i]) < C) and (float(Ei*labelMat[i]) < -toler)) or ((alphas[i] > 0) and (Ei*labelMat[i] > toler))
             if i_break_kkt:
                 j = select_j(i, m)
                 s = labelMat[i] * labelMat[j]
@@ -97,12 +113,15 @@ def smo_simple(dataMat, labelMat, C, toler, maxIter):
                 y_i = labelMat[i]
                 y_j = labelMat[j]
                 alpha_newj, alpha_newi = cal_new_alphaij(alphas, x_i, x_j, y_i, y_j, s, i, j, C, Ei, Ej)
+                alpha_oldj = alphas[j]
+                alpha_oldi = alphas[i]
                 alphas[j] = alpha_newj
                 alphas[i] = alpha_newi  # update alpha
                 w_new = np.transpose(np.multiply(alphas, labelMat)) * dataMat
-                b = cal_b(alpha_newj, alpha_newi, w_new, x_i, x_j, y_i, y_j, C)  # update b
+                # b = cal_b(alpha_newj, alpha_newi, w_new, x_i, x_j, y_i, y_j, C)  # update b
+                b = cal_b2(b, alpha_newj, alpha_newi, alpha_oldj, alpha_oldi, Ei, Ej, x_i, x_j, y_i, y_j, C)
                 alphaPairchange += 1
-                print(alphaPairchange)
+        print(alphaPairchange)
         if alphaPairchange != 0:
             iters = 0
         else:
