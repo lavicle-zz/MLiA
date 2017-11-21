@@ -2,6 +2,7 @@ from numpy import *
 from time import sleep
 
 
+
 def loadDataSet(fileName):
     dataMat = []
     labelMat = []
@@ -242,6 +243,6 @@ def testRbf(k1=1.3):
         if sign(predict) != sign(labelArr[i]): errorCount += 1
     print("the test error rate is: %f" % (float(errorCount) / m))
 
-if __name__ == "__main__":
-    testRbf(1.3)
-    pass
+
+testRbf(1.3)
+
