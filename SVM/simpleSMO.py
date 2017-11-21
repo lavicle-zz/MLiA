@@ -58,16 +58,16 @@ def cal_new_alphaij(alphas, x_i, x_j, y_i, y_j, s, i, j, C, Ei, Ej):
     return alpha_newj, alpha_newi
 
 
-def cal_b(alpha_newj, alpha_newi, w_new, x_i, x_j, y_i, y_j, C):
-    bj = y_j - w_new * x_j.T
-    bi = y_i - w_new * x_i.T
-    if 0 < alpha_newj< C:
-        b = bj
-    elif 0 < alpha_newi< C:
-        b = bi
-    else:
-        b = (bi + bj)/2
-    return b
+# def cal_b(alpha_newj, alpha_newi, w_new, x_i, x_j, y_i, y_j, C):
+#     bj = y_j - w_new * x_j.T
+#     bi = y_i - w_new * x_i.T
+#     if 0 < alpha_newj< C:
+#         b = bj
+#     elif 0 < alpha_newi< C:
+#         b = bi
+#     else:
+#         b = (bi + bj)/2
+#     return b
 
 def cal_b2(b, alpha_newj, alpha_newi, alpha_oldj, alpha_oldi, ei, ej, x_i, x_j, y_i, y_j, C):
     # test b for fullSMO
