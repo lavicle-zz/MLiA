@@ -2,7 +2,6 @@ from numpy import *
 from time import sleep
 
 
-
 def loadDataSet(fileName):
     dataMat = []
     labelMat = []
