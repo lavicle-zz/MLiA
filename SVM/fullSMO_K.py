@@ -156,6 +156,7 @@ def select_j(os, i, ei):
 #         j, Ej = select_j_random(os, i)
 #     return j, Ej
 
+
 def calc_e(os, k):
     fk = float(np.multiply(os.alphas, os.y_matrix).T * os.k[:, k] + os.b)  # 1*n
     error_k = fk - float(os.y_matrix[k])
@@ -217,9 +218,9 @@ def full_smo(x_matrix, y_matrix, c, tole, max_iter, ktup):
 
 
 def test_rbf(sigma):
-    dataArr, labelArr = import_data('testSetRBF.txt')
-    x = np.asmatrix(dataArr)
-    y = np.asmatrix(labelArr).T
+    data_arr, label_arr = import_data('testSetRBF.txt')
+    x = np.asmatrix(data_arr)
+    y = np.asmatrix(label_arr).T
     alphas, b = full_smo(x, y, 200, 0.0001, 10000,  ('rbf', sigma))
     # how many vectors
     sv_index = np.nonzero(alphas.A > 0)[0]
@@ -239,9 +240,9 @@ def test_rbf(sigma):
     print('error rate training: %f' % float(error_training/m))
 
     # the accuracy of the predictions of the test set
-    dataArr, labelArr = import_data('testSetRBF2.txt')
-    x = np.asmatrix(dataArr)
-    y = np.asmatrix(labelArr).T
+    data_arr, label_arr = import_data('testSetRBF2.txt')
+    x = np.asmatrix(data_arr)
+    y = np.asmatrix(label_arr).T
     m, n = y.shape
     pred_test = np.matrix(np.zeros((m, 1)))
     error_test = 0
