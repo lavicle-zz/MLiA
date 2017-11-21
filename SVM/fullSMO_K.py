@@ -98,11 +98,11 @@ def take_steps(os, i):
         update_e(os, j)
         # get b
         bi = os.b - ei - \
-             (alpha_i_new - alpha_i_old) * os.y_matrix[i] * os.k[i,i] - \
-             (alpha_j_new - alpha_j_old) * os.y_matrix[j] * os.k[j,i]
+             (alpha_i_new - alpha_i_old) * os.y_matrix[i] * os.k[i, i] - \
+             (alpha_j_new - alpha_j_old) * os.y_matrix[j] * os.k[j, i]
         bj = os.b - ej \
-             - (alpha_i_new - alpha_i_old) * os.y_matrix[i] * os.k[i,j] \
-             - (alpha_j_new - alpha_j_old) * os.y_matrix[j] * os.k[j,j]
+             - (alpha_i_new - alpha_i_old) * os.y_matrix[i] * os.k[i, j] \
+             - (alpha_j_new - alpha_j_old) * os.y_matrix[j] * os.k[j, j]
         if 0 < os.alphas[i] < os.c:  # the alpha used here should new or old? the answer is new, why?
             os.b = bi
         elif 0 < os.alphas[j] < os.c:
@@ -167,7 +167,7 @@ def select_j_random(os, i):
     # select a random j, which should not be i
     j = i
     while i == j:
-        j = np.random.randint(os.m)
+        j = int(np.random.uniform(0, os.m))
     ej = calc_e(os, j)
     return j, ej
 
@@ -215,14 +215,17 @@ def full_smo(x_matrix, y_matrix, c, tole, max_iter, ktup):
 # print(b)
 # print(alphas[alphas>0])
 
+
 def test_rbf(sigma):
     dataArr, labelArr = import_data('testSetRBF.txt')
     x = np.asmatrix(dataArr)
     y = np.asmatrix(labelArr).T
-    alphas, b = full_smo(x, y, 0.6, 0.001, 40, ('rbf', sigma))
+    alphas, b = full_smo(x, y, 200, 0.0001, 10000,  ('rbf', sigma))
     # how many vectors
     sv_index = np.nonzero(alphas.A > 0)[0]
     num_vector = sv_index.shape
+    svs = x[sv_index, :]  # !!! noted that svs will be used all the time without the change of the dataset
+    ysv = y[sv_index]  # !!! it will also be used in any case, think about the generation of the w
     print('number of vectors: %d' % num_vector)
     # the accuracy of the predictions of the training set
     m, n = alphas.shape
@@ -230,10 +233,11 @@ def test_rbf(sigma):
     error_training = 0
     for i in range(m):
         # since a lot of alphas are o, so we do not take those into w to save time for calculation
-        pred[i] = np.multiply(alphas[sv_index], y[sv_index]).T * calc_kernel(x[sv_index, :], x[i, :], ('rbf', sigma)) + b
+        pred[i] = np.multiply(alphas[sv_index], y[sv_index]).T * calc_kernel(svs, x[i, :], ('rbf', sigma)) + b
         if np.sign(pred[i]) != np.sign(y[i]):
             error_training += 1
     print('error rate training: %f' % float(error_training/m))
+
     # the accuracy of the predictions of the test set
     dataArr, labelArr = import_data('testSetRBF2.txt')
     x = np.asmatrix(dataArr)
@@ -242,9 +246,9 @@ def test_rbf(sigma):
     pred_test = np.matrix(np.zeros((m, 1)))
     error_test = 0
     for i in range(m):
-        # since a lot of alphas are o, so we do not take those into w to save time for calculation
-        pred_test[i] = np.multiply(alphas[sv_index], y[sv_index]).T * calc_kernel(x[sv_index, :], x[i, :], ('rbf', sigma)) + b
-        if np.sign(pred[i])[0,0] != np.sign(y[i])[0,0]:
+        # !!! since a lot of alphas are o, so we do not take those into w to save time for calculation
+        pred_test[i] = np.multiply(alphas[sv_index], ysv).T * calc_kernel(svs, x[i, :], ('rbf', sigma)) + b
+        if np.sign(pred_test[i]) != np.sign(y[i]):
             error_test += 1
     print('error rate test: %f' % float(error_test/m))
-test_rbf(0.3)
+test_rbf(1)
