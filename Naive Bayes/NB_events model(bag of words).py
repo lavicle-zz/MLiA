@@ -2,6 +2,7 @@ import numpy as np
 
 
 def create_data():
+    # just for little test
     posting_list = [['my', 'dog', 'has', 'flea', 'problems', 'help', 'please'],
                     ['maybe', 'not', 'take', 'him', 'to', 'dog', 'park', 'stupid'],
                     ['my', 'dalmation', 'is', 'so', 'cute', 'I', 'love', 'him'],
@@ -75,20 +76,64 @@ def classify(x_prob_vec0, x_prob_vec1, p_true, test_data):
         return 1
 
 
-def test_nb():
-    input_data_set, input_class_set = create_data()
-    vocal_list = create_vocab_list(input_data_set)
-    output_lists = []
-    for i in range(len(input_class_set)):
-        output_lists.append(words_set2vec(vocal_list, input_data_set[i]))
-    x_prob_vec0, x_prob_vec1, p_true = train_nb0(output_lists, input_class_set)
-    test_entry = ['love', 'my', 'dalmation']
-    test_list = words_set2vec(vocal_list, test_entry)
-    print(classify(x_prob_vec0, x_prob_vec1, p_true, test_list))
-    test_entry = ['stupid', 'garbage']
-    test_list = words_set2vec(vocal_list, test_entry)
-    print(classify(x_prob_vec0, x_prob_vec1, p_true, test_list))
+# def test_nb():
+#     # the little test of the naive bayes
+#     input_data_set, input_class_set = create_data()
+#     vocal_list = create_vocab_list(input_data_set)
+#     output_lists = []
+#     for i in range(len(input_class_set)):
+#         output_lists.append(words_set2vec(vocal_list, input_data_set[i]))
+#     x_prob_vec0, x_prob_vec1, p_true = train_nb0(output_lists, input_class_set)
+#     test_entry = ['love', 'my', 'dalmation']
+#     test_list = words_set2vec(vocal_list, test_entry)
+#     print(classify(x_prob_vec0, x_prob_vec1, p_true, test_list))
+#     test_entry = ['stupid', 'garbage']
+#     test_list = words_set2vec(vocal_list, test_entry)
+#     print(classify(x_prob_vec0, x_prob_vec1, p_true, test_list))
+#
+#
+# test_nb()
 
-test_nb()
+
+def text_parse(email_string):
+    import re
+    list_tokens = re.split(r'\W', email_string)  # this could generate ''
+    return [i.lower() for i in list_tokens if len(i) > 2]
 
 
+def arrange_data():
+    # put email into word/class list
+    class_list = []
+    words_list = []
+    full_list = []
+    for i in range(1, 26):
+        words = text_parse(open('email/spam/%d.txt' % i).read())
+        words_list.append(words)
+        class_list.append(1)
+        words = text_parse(open('email/ham/%d.txt' % i).read())
+        words_list.append(words)
+        class_list.append(0)
+    return words_list, class_list
+
+
+def test_nb_full():
+    list_words, list_class = arrange_data()
+    list_vocal = create_vocab_list(list_words)
+    # get random testing set and the other is the training set
+    training_set = list_words
+    testing_index = np.random.randint(50, size=10)
+    testing_set = list_words[testing_index]
+    del training_set[testing_index]
+    # train
+    list_word2vec = []
+    for document in training_set:
+        list_word2vec.append(words_set2vec(list_vocal, document))
+    x_prob_vec0, x_prob_vec1, p_true = train_nb0(list_word2vec, list_class)
+    # test
+    test_set = []
+    for document in testing_set:
+        test_set.append(words_set2vec(list_vocal, document))
+    classify(x_prob_vec0, x_prob_vec1, p_true, test_set)
+
+
+test_nb_full()
