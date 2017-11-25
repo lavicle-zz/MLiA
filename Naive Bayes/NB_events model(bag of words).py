@@ -40,8 +40,8 @@ def train_nb0(input_word2vec_set, input_class_set):
     input_word2vec0 = input_word2vec_set[class0_index, :]
     input_word2vec1 = input_word2vec_set[class1_index, :]
     # get the token (not sample) number of each class
-    m0 = sum(input_word2vec0)  # !!! noting the difference with bayes.py
-    m1 = sum(input_word2vec1)
+    m0 = np.sum(input_word2vec0)  # !!! noting the difference with bayes.py and np.sum and sum is different
+    m1 = np.sum(input_word2vec1)
     p_true = m1 / (m0 + m1)
     # sum the num of columns(corresponding to feature or token)
     sum0_of_vec0 = np.sum(input_word2vec0,  axis=0)  # where 0 represents 'axis = 0'
@@ -49,8 +49,8 @@ def train_nb0(input_word2vec_set, input_class_set):
     # number of features or tokens
     num_fea = input_word2vec_set.shape[1]
     # get conditional probabilities
-    x_prob_vec0 = ((sum0_of_vec0 + 1) / (m0 + num_fea))  # !!!noting the difference with bayes
-    x_prob_vec1 = ((sum0_of_vec1 + 1) / (m1 + num_fea))  # the plus of 1 or k is to prevent 0 probability
+    x_prob_vec0 = np.log((sum0_of_vec0 + 1) / (m0 + num_fea))  # !!!noting the difference with bayes
+    x_prob_vec1 = np.log((sum0_of_vec1 + 1) / (m1 + num_fea))  # the plus of 1 or k is to prevent 0 probability
     return x_prob_vec0, x_prob_vec1, p_true
 
 
@@ -61,8 +61,8 @@ def classify(x_prob_vec0, x_prob_vec1, p_true, test_data):
     # p0 = test_data * x_prob_vec0.T + np.log(p_true)
     # why not multiply those x with test_data = 0 (not showing in the documents)
     # the original codes not fit in with Andrew Wu's two NB codes
-    p1 = test_data * np.log(x_prob_vec1).T + (1 - test_data) * np.log(1 - x_prob_vec1).T + np.log(p_true)
-    p0 = test_data * np.log(x_prob_vec0).T + (1 - test_data) * np.log(1 - x_prob_vec0).T + np.log(1 - p_true)
+    p1 = test_data * (x_prob_vec1).T + (1 - test_data) * (1 - x_prob_vec1).T + np.log(p_true)
+    p0 = test_data * (x_prob_vec0).T + (1 - test_data) * (1 - x_prob_vec0).T + np.log(1 - p_true)
     # print(p1)
     # print(p0)
     # p1_exp = np.exp(p1)
@@ -101,7 +101,7 @@ def text_parse(email_string):
     return [i.lower() for i in list_tokens if len(i) > 2]
 
 
-def arrange_data():
+def email2data_list():
     # put email into word/class list
     class_list = []
     words_list = []
@@ -117,23 +117,31 @@ def arrange_data():
 
 
 def test_nb_full():
-    list_words, list_class = arrange_data()
+    list_words, list_class = email2data_list()
     list_vocal = create_vocab_list(list_words)
-    # get random testing set and the other is the training set
-    training_set = list_words
-    testing_index = np.random.randint(50, size=10)
-    testing_set = list_words[testing_index]
-    del training_set[testing_index]
+    # get random testing index and the other is the training index
+    training_index = list(range(50))
+    testing_index = []
+    for i in range(10):
+        index = np.int(np.random.uniform(0, len(training_index)))  # get a index in training_index
+        # !!!why we need len(training_set), not 50, since it is changing in the loop
+        testing_index.append(training_index[index])  # add the number related to the index to testing_index
+        del(training_index[index])  # remove that number related to the index in training_index
     # train
-    list_word2vec = []
-    for document in training_set:
-        list_word2vec.append(words_set2vec(list_vocal, document))
-    x_prob_vec0, x_prob_vec1, p_true = train_nb0(list_word2vec, list_class)
+    training_set = []
+    training_class = []
+    for index in training_index:
+        training_set.append(words_set2vec(list_vocal, list_words[index]))
+        training_class.append(list_class[index])
+    x_prob_vec0, x_prob_vec1, p_true = train_nb0(training_set, training_class)
     # test
-    test_set = []
-    for document in testing_set:
-        test_set.append(words_set2vec(list_vocal, document))
-    classify(x_prob_vec0, x_prob_vec1, p_true, test_set)
+    error_count = 0
+    for index in testing_index:
+        single_test_set = words_set2vec(list_vocal, list_words[index])
+        single_result = classify(x_prob_vec0, x_prob_vec1, p_true, single_test_set)
+        if single_result != list_class[index]:
+            error_count += 1
+    print("error rate: %f" % (float(error_count)/len(testing_index)))
 
 
 test_nb_full()
